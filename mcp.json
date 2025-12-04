@@ -5,6 +5,9 @@
 		},
 		"bridge-router-mcp": {
 			"source": "./bridge-router-mcp"
+		},
+		"gas-oracle-mcp": {
+			"source": "./gas-oracle-mcp"
 		}
 	}
 }
