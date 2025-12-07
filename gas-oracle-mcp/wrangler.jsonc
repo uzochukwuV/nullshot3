@@ -1,0 +1,35 @@
+/**
+ * Gas Oracle MCP - Cloudflare Worker configuration
+ *
+ * This MCP server exposes tools for:
+ * - Querying multi-chain gas prices via thirdweb RPC Edge
+ * - Computing recommended EIP-1559 style fee suggestions
+ * - Estimating transaction gas cost in native and USD terms
+ * - Aggregating snapshots across chains
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "gas-oracle-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "GAS_ORACLE_MCP_SERVER",
+        "class_name": "GasOracleMcpServer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["GasOracleMcpServer"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "THIRDWEB_CLIENT_ID": "REPLACE_WITH_THIRDWEB_CLIENT_ID"
+  }
+}

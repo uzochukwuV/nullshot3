@@ -1,0 +1,37 @@
+/**
+ * Bridge Router MCP - Cloudflare Worker configuration
+ *
+ * This MCP server exposes tools for working with thirdweb Bridge:
+ * - Listing supported routes
+ * - Preparing bridge quotes and transactions
+ * - Checking bridge status
+ * - Querying token metadata and prices
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bridge-router-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "BRIDGE_ROUTER_MCP_SERVER",
+        "class_name": "BridgeRouterMcpServer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "BridgeRouterMcpServer"
+      ]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "THIRDWEB_CLIENT_ID": "REPLACE_WITH_THIRDWEB_CLIENT_ID"
+  }
+}

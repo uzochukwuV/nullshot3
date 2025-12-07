@@ -2,6 +2,15 @@
 	"mcpServers": {
 		"mcp-template": {
 			"source": "github:null-shot/typescript-mcp-template"
+		},
+		"bridge-router-mcp": {
+			"source": "./bridge-router-mcp"
+		},
+		"gas-oracle-mcp": {
+			"source": "./gas-oracle-mcp"
+		},
+		"route-optimizer-mcp": {
+			"source": "./route-optimizer-mcp"
 		}
 	}
 }

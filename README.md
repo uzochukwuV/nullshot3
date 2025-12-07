@@ -242,6 +242,122 @@ export function useAgent(baseUrl: string) {
 }
 ```
 
+## thirdweb Integration (Bridge, Tokens, RPC Edge)
+
+This template has been extended with a set of MCP servers that deeply integrate with **thirdweb** to power cross-chain routing and gas-aware optimization:
+
+- `bridge-router-mcp` – wraps **thirdweb Bridge**:
+  - `Bridge.Buy.prepare` for finalized bridge quotes + prepared transactions.
+  - `Bridge.status` for end-to-end bridge status across chains.
+  - `Bridge.tokens` for token metadata and price data (e.g., `prices.USD`).
+  - `/v1/bridge/routes` HTTP API for route discovery.
+- `gas-oracle-mcp` – uses **thirdweb RPC Edge** (`https://<chainId>.rpc.thirdweb.com`) and `Bridge.tokens` to:
+  - Fetch EIP-1559-style gas data (`eth_feeHistory`) and fall back to `eth_gasPrice`.
+  - Compute gas costs in native token units and approximate USD.
+  - Produce normalized cross-chain snapshots (e.g., cost per 100k gas).
+- `route-optimizer-mcp` – uses **Bridge + RPC Edge** to:
+  - Call `Bridge.Buy.prepare` with different `maxSteps` and `slippageToleranceBps` settings.
+  - Use token prices from `Bridge.tokens` to compare origin vs destination USD value.
+  - Estimate heuristic gas cost per transaction via RPC Edge.
+  - Score candidate routes (cheapest, fastest, balanced) and recommend one.
+
+### Required environment variables for thirdweb
+
+Set these in `.dev.vars` for local dev and as secrets/vars in Cloudflare:
+
+```bash
+THIRDWEB_CLIENT_ID=your_thirdweb_client_id
+THIRDWEB_SECRET_KEY=your_thirdweb_secret_key
+```
+
+- `THIRDWEB_CLIENT_ID` is used by the SDK (`createThirdwebClient`) in all MCPs to call `Bridge.*` and `Bridge.tokens`.
+- `THIRDWEB_SECRET_KEY` is used to authenticate **RPC Edge** calls and the `/v1/bridge/routes` HTTP API via the `x-secret-key` header.
+
+> Note: use Cloudflare **secrets** (not plain vars) for `THIRDWEB_SECRET_KEY` in production.
+
+### Slippage configuration (Bridge.Buy.prepare)
+
+Both the low-level and high-level MCPs support configuring slippage tolerance:
+
+- `bridge-router-mcp`:
+  - Tool: `bridge_prepare_quote`
+  - Parameter: `slippageToleranceBps?: number`
+  - This is passed directly to `Bridge.Buy.prepare({ slippageToleranceBps })`.
+- `route-optimizer-mcp`:
+  - Tool: `optimize_bridge_route`
+  - Parameter: `slippageToleranceBps?: number`
+  - All evaluated routes (different `maxSteps` options) share the same slippage tolerance.
+
+**Interpretation:**
+
+- Slippage tolerance is in basis points (bps):
+  - `100` = 1%
+  - `500` = 5%
+- If omitted, thirdweb uses its own default slippage for the prepared quote.
+
+From the agent’s perspective, you can steer slippage by:
+
+- Including instructions in the system prompt, e.g.:
+  - “For volatile tokens, use `slippageToleranceBps` around 300–500 (3–5%).”
+  - “Default to 100 (1%) slippage unless the user explicitly asks for more.”
+- Interpreting user language:
+  - “Max 1% slippage” → `slippageToleranceBps = 100`
+  - “Up to 0.5% slippage” → `slippageToleranceBps = 50`
+
+### Gas preference configuration (RPC Edge + tokens)
+
+`gas-oracle-mcp` and `route-optimizer-mcp` both use thirdweb’s infrastructure for gas:
+
+- RPC Edge (`https://<chainId>.rpc.thirdweb.com`) for:
+  - `eth_feeHistory` (EIP-1559) → base fee, priority fee, max fee suggestions.
+  - `eth_gasPrice` as a fallback.
+- `Bridge.tokens` (with `NATIVE_TOKEN_ADDRESS`) for:
+  - Native token symbol and decimals.
+  - Native token `prices.USD` to approximate USD gas costs.
+
+You can influence gas-related behaviour at the agent level by:
+
+- System prompt guidance:
+  - “When comparing routes, always consider both bridge protocol fees and estimated gas cost in USD.”
+  - “For the `gas_multi_chain_snapshot` tool, prefer chains within 10–20% of the cheapest gas cost when other factors are equal.”
+- Tool choices:
+  - Use `gas_get_details` for a single-chain deep dive.
+  - Use `gas_estimate_cost` when you know a specific gas limit (e.g., from simulated or historical transactions).
+  - Use `gas_multi_chain_snapshot` to answer “where is gas cheapest right now?”-style questions.
+
+### Typical AgentBridge flow (end-to-end)
+
+For a query like:
+
+> “What’s the cheapest way to bridge 500 USDC from Polygon to Base?”
+
+The agent should roughly:
+
+1. Resolve tokens and chains:
+   - Call `bridge_search_tokens` to find USDC on Polygon (137) and Base (8453).
+2. Optimize the route:
+   - Call `optimize_bridge_route` with:
+     - `originChainId=137`, `destinationChainId=8453`
+     - `originTokenAddress`, `destinationTokenAddress`
+     - `amountWei` for 500 USDC
+     - `preference="cheapest"`
+     - optional `slippageToleranceBps` based on user/system policies.
+3. Use gas-aware scoring:
+   - `route-optimizer-mcp` internally:
+     - Uses `Bridge.Buy.prepare` to evaluate multiple `maxSteps` values.
+     - Uses RPC Edge gas + native token prices to approximate gas costs per transaction.
+     - Returns candidates with:
+       - Destination value in USD
+       - Estimated gas in USD
+       - Net destination after gas
+       - Estimated execution time
+       - Scores and a recommended route.
+4. Explain the result:
+   - Present the recommended route and trade-offs:
+     - “Route A gives you ~$X after gas, takes ~Y seconds, uses maxSteps=2, and respects 1% slippage.”
+
+With this setup, your agent remains conversational but is grounded in thirdweb’s Bridge, token pricing, and RPC Edge infrastructure.
+
 ## Configuration
 
 ### Environment Variables

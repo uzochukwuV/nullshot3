@@ -12,10 +12,14 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.9",
+    "@modelcontextprotocol/sdk": "^1.17.4",
     "@nullshot/agent": "^0.3.4",
+    "@nullshot/mcp": "0.3.6",
     "ai": "^5.0.27",
     "hono": "^4.7.11",
-    "mcp-template": "github:null-shot/typescript-mcp-template"
+    "mcp-template": "github:null-shot/typescript-mcp-template",
+    "thirdweb": "5.115.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@nullshot/cli": "^0.2.5",
