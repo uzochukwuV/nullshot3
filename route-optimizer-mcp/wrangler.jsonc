@@ -1,0 +1,34 @@
+/**
+ * Route Optimizer MCP - Cloudflare Worker configuration
+ *
+ * This MCP server exposes tools for:
+ * - Evaluating and scoring cross-chain bridge routes using thirdweb Bridge
+ * - Estimating gas costs via thirdweb RPC Edge
+ * - Combining protocol fees, price impact, and gas into a unified route score
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "route-optimizer-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-06-01",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ROUTE_OPTIMIZER_MCP_SERVER",
+        "class_name": "RouteOptimizerMcpServer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RouteOptimizerMcpServer"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "THIRDWEB_CLIENT_ID": "REPLACE_WITH_THIRDWEB_CLIENT_ID"
+  }
+}

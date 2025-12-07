@@ -8,6 +8,9 @@
 		},
 		"gas-oracle-mcp": {
 			"source": "./gas-oracle-mcp"
+		},
+		"route-optimizer-mcp": {
+			"source": "./route-optimizer-mcp"
 		}
 	}
 }
