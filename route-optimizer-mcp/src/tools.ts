@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { Bridge, createThirdwebClient } from 'thirdweb';
+import { Bridge, NATIVE_TOKEN_ADDRESS, createThirdwebClient } from 'thirdweb';
 import type { RouteOptimizerEnv } from './server';
 
 /**
@@ -147,6 +147,7 @@ async function fetchTokenInfo(
 
 /**
  * Estimate gas cost for a single transaction on a chain, using a heuristic gas limit.
+ * Uses the chain's native token (via NATIVE_TOKEN_ADDRESS) for USD valuation.
  */
 async function estimateTxGasCostUsd(
   env: RouteOptimizerEnv,
@@ -160,22 +161,19 @@ async function estimateTxGasCostUsd(
   const gasPriceWei = await fetchGasPriceWei(env, chainId);
   const costWei = gasLimit * gasPriceWei;
 
-  // Try to fetch native token price to estimate USD cost.
+  // Use the native token for price discovery to value gas in USD.
   const client = getThirdwebClient(env);
-  let priceUsd: number | undefined;
-
   try {
     const tokens = await Bridge.tokens({
       chainId,
-      // Native token discovery: omit tokenAddress to get common tokens, and pick first native-like.
-      // If that fails, we skip USD estimation.
+      tokenAddress: NATIVE_TOKEN_ADDRESS,
       client,
     });
 
     if (tokens && tokens.length > 0) {
-      const nativeLike = tokens.find((t) => t.prices?.USD !== undefined) ?? tokens[0];
-      priceUsd = nativeLike.prices?.USD;
-      const decimals = nativeLike.decimals;
+      const native = tokens[0];
+      const priceUsd = native.prices?.USD;
+      const decimals = native.decimals;
       if (priceUsd !== undefined) {
         const costNativeFloat = Number(costWei) / Number(10n ** BigInt(decimals));
         const usd = costNativeFloat * priceUsd;
@@ -288,6 +286,13 @@ export function setupServerTools(server: McpServer, env: RouteOptimizerEnv) {
         .describe(
           'Heuristic gas units per transaction as decimal string (default: 200000). Used to estimate gas cost per step.',
         ),
+      slippageToleranceBps: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          'Optional slippage tolerance in basis points (e.g., 100 = 1%). If omitted, thirdweb will use its default.',
+        ),
     },
     async ({
       originChainId,
@@ -300,6 +305,7 @@ export function setupServerTools(server: McpServer, env: RouteOptimizerEnv) {
       maxStepsOptions,
       preference,
       heuristicGasPerTransaction,
+      slippageToleranceBps,
     }) => {
       const client = getThirdwebClient(env);
       const amount = BigInt(amountWei);
@@ -326,9 +332,7 @@ export function setupServerTools(server: McpServer, env: RouteOptimizerEnv) {
             sender,
             receiver,
             maxSteps: stepsOption,
-            client,
-          });
-
+            ...(slippageToleranceBps !== undefined ? { slippageToleranceBps
           // Value in/out in USD
           const destValueInfo = computeValueUsd(quote.destinationAmount, destToken);
 

@@ -180,6 +180,13 @@ export function setupServerTools(server: McpServer, env: BridgeRouterEnv) {
         .number()
         .optional()
         .describe('Optional maximum number of route steps to allow.'),
+      slippageToleranceBps: z
+        .number()
+        .int()
+        .optional()
+        .describe(
+          'Optional slippage tolerance in basis points (e.g., 100 = 1%). If omitted, thirdweb will use its default.',
+        ),
     },
     async ({
       originChainId,
@@ -190,6 +197,7 @@ export function setupServerTools(server: McpServer, env: BridgeRouterEnv) {
       sender,
       receiver,
       maxSteps,
+      slippageToleranceBps,
     }) => {
       const client = getThirdwebClient(env);
       const amount = BigInt(amountWei);
@@ -203,6 +211,7 @@ export function setupServerTools(server: McpServer, env: BridgeRouterEnv) {
         sender,
         receiver,
         ...(maxSteps !== undefined ? { maxSteps } : {}),
+        ...(slippageToleranceBps !== undefined ? { slippageToleranceBps } : {}),
         client,
       });
 
